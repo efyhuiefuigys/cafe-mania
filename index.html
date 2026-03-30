@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>☕ Café Mania</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a0a00;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;user-select:none}
+#gameCanvas{display:block;cursor:pointer}
+#hud{position:fixed;top:0;left:0;right:0;z-index:10;pointer-events:none}
+#topBar{background:linear-gradient(180deg,#3d1c00 0%,#5c2a00 100%);border-bottom:3px solid #ff9900;padding:6px 12px;display:flex;align-items:center;gap:14px;pointer-events:all}
+.hudBtn{background:linear-gradient(180deg,#ff9900,#cc6600);border:2px solid #ffcc00;border-radius:10px;padding:4px 10px;color:#fff;font-weight:bold;font-size:13px;cursor:pointer;white-space:nowrap;text-shadow:1px 1px 2px #000}
+.hudBtn:hover{background:linear-gradient(180deg,#ffbb33,#ff8800)}
+#xpBar{flex:1;background:#222;border-radius:8px;height:18px;border:2px solid #888;overflow:hidden;min-width:80px}
+#xpFill{height:100%;background:linear-gradient(90deg,#00cc44,#00ff66);transition:width 0.3s}
+#xpLabel{position:absolute;width:100%;text-align:center;font-size:11px;font-weight:bold;color:#fff;line-height:18px}
+#xpWrap{position:relative;flex:1;min-width:80px}
+#bottomBar{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,#3d1c00,#5c2a00);border-top:3px solid #ff9900;padding:6px;display:flex;justify-content:center;gap:8px;z-index:10;pointer-events:all}
+.footBtn{background:linear-gradient(180deg,#ff6600,#cc3300);border:2px solid #ff9900;border-radius:12px;padding:6px 14px;color:#fff;font-weight:bold;font-size:13px;cursor:pointer;text-shadow:1px 1px 2px #000;transition:all 0.15s}
+.footBtn:hover{background:linear-gradient(180deg,#ff8800,#ff4400);transform:translateY(-2px)}
+/* Modals */
+.modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(160deg,#fff8f0,#ffe8cc);border:3px solid #ff9900;border-radius:18px;padding:20px;z-index:100;min-width:340px;max-width:90vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.6)}
+.modal.open{display:block}
+.modalOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99}
+.modalOverlay.open{display:block}
+.modalTitle{font-size:20px;font-weight:bold;color:#cc3300;margin-bottom:14px;text-align:center;text-shadow:1px 1px 0 #ffcc99}
+.closeBtn{position:absolute;top:10px;right:14px;font-size:22px;cursor:pointer;color:#cc3300;font-weight:bold}
+.closeBtn:hover{color:#ff0000}
+/* Shop grid */
+.shopGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.shopItem{background:linear-gradient(135deg,#fff,#ffe0cc);border:2px solid #ffaa55;border-radius:10px;padding:10px;text-align:center;cursor:pointer;transition:all 0.2s}
+.shopItem:hover{background:linear-gradient(135deg,#ffe8cc,#ffd0aa);transform:scale(1.04)}
+.shopItem .icon{font-size:28px}
+.shopItem .name{font-size:12px;font-weight:bold;color:#663300;margin:4px 0 2px}
+.shopItem .cost{font-size:12px;color:#cc6600}
+.shopItem.locked{opacity:0.5;cursor:not-allowed}
+/* Recipe grid */
+.recipeGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.recipeItem{background:linear-gradient(135deg,#fff,#f0ffe0);border:2px solid #99cc33;border-radius:10px;padding:8px;text-align:center;cursor:pointer}
+.recipeItem:hover:not(.locked){background:#e0ffcc}
+.recipeItem.locked{background:#eee;opacity:0.6;cursor:not-allowed;position:relative}
+.recipeItem.locked::after{content:'🔒';position:absolute;top:2px;right:4px;font-size:14px}
+.recipeItem .rIcon{font-size:24px}
+.recipeItem .rName{font-size:10px;font-weight:bold;color:#336600;margin:2px 0}
+.recipeItem .rInfo{font-size:9px;color:#666}
+/* Achievement */
+.achGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.achCard{background:#fff8ee;border:2px solid #ffcc66;border-radius:10px;padding:10px}
+.achCard .achTitle{font-weight:bold;font-size:13px;color:#663300}
+.achCard .achStars{font-size:18px;margin:4px 0}
+.achCard .achDesc{font-size:11px;color:#888}
+/* Tooltip */
+#tooltip{position:fixed;background:rgba(0,0,0,0.8);color:#fff;padding:6px 10px;border-radius:8px;font-size:12px;pointer-events:none;z-index:200;display:none;border:1px solid #ff9900}
+/* Notif */
+#notif{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#ff6600,#ffcc00);color:#fff;padding:10px 24px;border-radius:16px;font-weight:bold;font-size:15px;z-index:300;opacity:0;transition:opacity 0.4s;pointer-events:none;text-shadow:1px 1px 2px #000;border:2px solid #fff}
+/* Recipe cooking panel */
+#cookPanel{display:none;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:linear-gradient(160deg,#fff8f0,#ffe8cc);border:3px solid #ff9900;border-radius:16px;padding:16px;z-index:50;min-width:320px;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
+#cookPanel .cpTitle{font-weight:bold;font-size:15px;color:#cc3300;margin-bottom:10px;text-align:center}
+#cookGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:240px;overflow-y:auto}
+.cookItem{background:#fff;border:2px solid #ffaa55;border-radius:8px;padding:6px;text-align:center;cursor:pointer;transition:all 0.15s}
+.cookItem:hover{background:#fff0cc;transform:scale(1.05)}
+.cookItem.cooking{background:#ffe0cc;border-color:#ff6600}
+.cookItem .cIcon{font-size:20px}
+.cookItem .cName{font-size:9px;font-weight:bold;color:#663300}
+.cookItem .cTime{font-size:9px;color:#888}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="hud">
+<div id="topBar">
+  <div class="hudBtn" id="goldDisplay">🪙 <span id="goldVal">500</span></div>
+  <div class="hudBtn" id="gemDisplay">💚 <span id="gemVal">50</span></div>
+  <div class="hudBtn">Nv <span id="lvlVal">1</span></div>
+  <div id="xpWrap"><div id="xpBar"><div id="xpFill" style="width:0%"></div></div><div id="xpLabel">0/100 XP</div></div>
+  <div class="hudBtn">⚡ <span id="energyVal">50</span>/50</div>
+  <div class="hudBtn">😊 <span id="popVal">3.0</span></div>
+  <div class="hudBtn" onclick="saveGame()" style="margin-left:auto">💾 Salvar</div>
+</div>
+</div>
+
+<div id="bottomBar">
+  <button class="footBtn" onclick="openModal('hireModal')">👤 Contratar</button>
+  <button class="footBtn" onclick="openModal('shopModal')">🏪 Loja</button>
+  <button class="footBtn" onclick="openModal('expandModal')">🏗️ Expansões</button>
+  <button class="footBtn" onclick="openModal('giftsModal')">🎁 Presentes</button>
+  <button class="footBtn" onclick="openModal('avatarModal')">🧑 Avatar</button>
+  <button class="footBtn" onclick="openModal('recipesModal')">📖 Receitas</button>
+  <button class="footBtn" onclick="openModal('achievModal')">🏆 Conquistas</button>
+</div>
+
+<div id="tooltip"></div>
+<div id="notif"></div>
+
+<!-- Cook Panel -->
+<div id="cookPanel">
+  <div class="cpTitle">🍳 Escolha uma Receita</div>
+  <div id="cookGrid"></div>
+  <button onclick="closeCookPanel()" style="margin-top:10px;width:100%;padding:6px;background:#cc3300;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer">Fechar</button>
+</div>
+
+<!-- Modal Overlay -->
+<div class="modalOverlay" id="modalOverlay" onclick="closeAllModals()"></div>
+
+<!-- SHOP MODAL -->
+<div class="modal" id="shopModal">
+  <div class="modalTitle">🏪 Loja</div>
+  <span class="closeBtn" onclick="closeAllModals()">✕</span>
+  <div id="shopContent"></div>
+</div>
+
+<!-- HIRE MODAL -->
+<div class="modal" id="hireModal">
+  <div class="modalTitle">👤 Contratar Garçom</div>
+  <span class="closeBtn" onclick="closeAllModals()">✕</span>
+  <div id="hireContent"></div>
+</div>
+
+<!-- RECIPES MODAL -->
+<div class="modal" id="recipesModal">
+  <div class="modalTitle">📖 Livro de Receitas</div>
+  <span class="closeBtn" onclick="closeAllModals()">✕</span>
+  <div id="recipesContent"></div>
+</div>
+
+<!-- ACHIEVEMENTS MODAL -->
+<div class="modal" id="achievModal">
+  <div class="modalTitle">🏆 Conquistas</div>
+  <span class="closeBtn" onclick="closeAllModals()">✕</span>
+  <div id="achievContent"></div>
+</div>
+
+<!-- EXPAND MODAL -->
+<div class="modal" id="expandModal">
+  <div class="modalTitle">🏗️ Expansões</div>
+  <span class="closeBtn" onclick="closeAllModals()">✕</span>
+  <div id="expandContent"></div>
+</div>
+
+<!-- GIFTS MODAL -->
+<div class="modal" id="giftsModal">
+  <div class="modalTitle">🎁 Presentes</div>
+  <span class="closeBtn" onclick="closeAllModals()">✕</span>
+  <div id="giftsContent"></div>
+</div>
+
+<!-- AVATAR MODAL -->
+<div class="modal" id="avatarModal">
+  <div class="modalTitle">🧑 Avatar</div>
+  <span class="closeBtn" onclick="closeAllModals()">✕</span>
+  <div id="avatarContent"></div>
+</div>
+
+<!-- MISSIONS MODAL -->
+<div class="modal" id="missionsModal">
+  <div class="modalTitle">📋 Missões</div>
+  <span class="closeBtn" onclick="closeAllModals()">✕</span>
+  <div id="missionsContent"></div>
+</div>
+<script>
+// ==================== CONSTANTS ====================
+const TILE_W = 64, TILE_H = 32;
+const RECIPES = [
+  {id:'cafe',name:'Café',icon:'☕',time:30,cost:5,sell:15,xp:1,lvl:1,energy:1},
+  {id:'ovo',name:'Ovo Mexido',icon:'🍳',time:60,cost:8,sell:20,xp:2,lvl:1,energy:1},
+  {id:'nachos',name:'Nachos',icon:'🧀',time:60,cost:10,sell:25,xp:2,lvl:1,energy:1},
+  {id:'salada',name:'Salada',icon:'🥗',time:120,cost:15,sell:35,xp:3,lvl:1,energy:1},
+  {id:'panqueca',name:'Panqueca',icon:'🥞',time:180,cost:20,sell:50,xp:4,lvl:1,energy:2},
+  {id:'hamburguer',name:'Hambúrguer',icon:'🍔',time:300,cost:30,sell:80,xp:6,lvl:6,energy:2},
+  {id:'pizza',name:'Pizza',icon:'🍕',time:480,cost:40,sell:100,xp:8,lvl:6,energy:2},
+  {id:'taco',name:'Taco',icon:'🌮',time:240,cost:25,sell:65,xp:5,lvl:6,energy:2},
+  {id:'acai',name:'Açaí',icon:'🥣',time:180,cost:20,sell:55,xp:5,lvl:7,energy:1},
+  {id:'macarrao',name:'Macarrão',icon:'🍝',time:360,cost:35,sell:90,xp:7,lvl:8,energy:2},
+  {id:'espresso',name:'Espresso',icon:'☕',time:60,cost:8,sell:20,xp:2,lvl:3,energy:1},
+  {id:'cappuccino',name:'Cappuccino',icon:'🫖',time:120,cost:12,sell:30,xp:3,lvl:4,energy:1},
+  {id:'suco',name:'Suco',icon:'🧃',time:60,cost:10,sell:25,xp:2,lvl:2,energy:1},
+  {id:'vitamina',name:'Vitamina',icon:'🥤',time:120,cost:15,sell:35,xp:3,lvl:3,energy:1},
+  {id:'detox',name:'Suco Detox',icon:'🧋',time:180,cost:20,sell:50,xp:5,lvl:5,energy:1},
+  {id:'pamonha',name:'Pamonha',icon:'🫔',time:600,cost:50,sell:130,xp:10,lvl:11,energy:3},
+  {id:'feijoada',name:'Feijoada',icon:'🥘',time:1800,cost:80,sell:220,xp:18,lvl:13,energy:3},
+  {id:'frango',name:'Frango Grelhado',icon:'🍗',time:900,cost:60,sell:160,xp:13,lvl:12,energy:2},
+  {id:'camarao',name:'Camarão',icon:'🦐',time:1200,cost:100,sell:280,xp:22,lvl:15,energy:3},
+  {id:'temaki',name:'Temaki',icon:'🍣',time:720,cost:70,sell:190,xp:15,lvl:14,energy:2},
+  {id:'picanha',name:'Picanha',icon:'🥩',time:1500,cost:90,sell:250,xp:20,lvl:16,energy:3},
+  {id:'sushi',name:'Sushi',icon:'🍱',time:1200,cost:120,sell:320,xp:25,lvl:21,energy:2},
+  {id:'ramen',name:'Ramen',icon:'🍜',time:900,cost:100,sell:270,xp:22,lvl:22,energy:2},
+  {id:'croissant',name:'Croissant',icon:'🥐',time:480,cost:60,sell:160,xp:13,lvl:23,energy:2},
+  {id:'coqauvin',name:'Coq au Vin',icon:'🍷',time:2700,cost:200,sell:550,xp:44,lvl:25,energy:3},
+  {id:'burrito',name:'Burrito',icon:'🌯',time:720,cost:80,sell:210,xp:17,lvl:24,energy:2},
+];
+
+const FURNITURE_DEFS = [
+  {id:'stove',name:'Fogão Simples',icon:'🍳',cost:200,lvl:1,w:1,h:1,type:'stove',color:'#888'},
+  {id:'stove2',name:'Fogão Intermediário',icon:'🍲',cost:500,lvl:5,w:1,h:1,type:'stove',color:'#666'},
+  {id:'stove3',name:'Fogão Profissional',icon:'🥘',cost:1200,lvl:10,w:1,h:1,type:'stove',color:'#444'},
+  {id:'table',name:'Mesa',icon:'🪑',cost:150,lvl:1,w:1,h:1,type:'table',color:'#8B4513'},
+  {id:'table2',name:'Mesa Redonda',icon:'🍽️',cost:300,lvl:5,w:1,h:1,type:'table',color:'#A0522D'},
+  {id:'counter',name:'Balcão de Entrega',icon:'🍴',cost:350,lvl:1,w:1,h:1,type:'counter',color:'#D2691E'},
+  {id:'cashregister',name:'Caixa Registradora',icon:'💰',cost:400,lvl:1,w:1,h:1,type:'cash',color:'#2F4F4F'},
+  {id:'fridge',name:'Geladeira',icon:'🧊',cost:600,lvl:3,w:1,h:1,type:'deco',color:'#B0C4DE'},
+  {id:'coffeemachine',name:'Máquina de Café',icon:'☕',cost:450,lvl:2,w:1,h:1,type:'deco',color:'#4a2c00'},
+  {id:'juicemachine',name:'Máquina de Sucos',icon:'🧃',cost:380,lvl:2,w:1,h:1,type:'deco',color:'#FF8C00'},
+  {id:'plant',name:'Planta',icon:'🪴',cost:80,lvl:1,w:1,h:1,type:'deco',color:'#228B22'},
+  {id:'lamp',name:'Luminária',icon:'💡',cost:100,lvl:1,w:1,h:1,type:'deco',color:'#FFD700'},
+  {id:'painting',name:'Quadro',icon:'🖼️',cost:120,lvl:1,w:1,h:1,type:'deco',color:'#8B0000'},
+  {id:'wok',name:'Wok',icon:'🥢',cost:2000,lvl:20,w:1,h:1,type:'stove',color:'#333'},
+  {id:'grill',name:'Grill',icon:'🥩',cost:3500,lvl:30,w:1,h:1,type:'stove',color:'#222'},
+];
+
+const WAITERS_DEF = [
+  {id:'yasmin',name:'Yasmin',icon:'👩',cost:500,speed:1.2,energy:100},
+  {id:'zelia',name:'Zélia',icon:'👵',cost:800,speed:1.0,energy:120},
+  {id:'marion',name:'Marion',icon:'👱‍♀️',cost:1200,speed:1.4,energy:100},
+  {id:'simon',name:'Simon',icon:'👨',cost:1500,speed:1.5,energy:150},
+];
+
+const CUSTOMER_TYPES = [
+  {type:'normal',icon:'🧑',payMult:1,patience:45,color:'#FFA500'},
+  {type:'child',icon:'👦',payMult:0.8,patience:30,color:'#FF69B4'},
+  {type:'exec',icon:'👔',payMult:1.5,patience:60,color:'#4169E1'},
+  {type:'vip',icon:'👑',payMult:2,patience:50,color:'#FFD700'},
+  {type:'tourist',icon:'📸',payMult:1.2,patience:55,color:'#32CD32'},
+  {type:'hungry',icon:'😋',payMult:1.3,patience:40,color:'#FF4500'},
+  {type:'special',icon:'⭐',payMult:2.5,patience:60,color:'#9400D3'},
+];
+
+// ==================== GAME STATE ====================
+let G = {
+  gold:500, gems:50, level:1, xp:0, xpNext:100,
+  energy:50, energyMax:50, popularity:3.0,
+  gridSize:10,
+  tiles:[],       // grid cells: {furniture or null}
+  customers:[],
+  waiters:[],
+  particles:[],
+  stoves:[],      // active stove cooking info
+  readyDishes:[],
+  gifts:[],
+  stats:{served:0,burned:0,recipes:{},speedServes:0,goldSpent:0,cleaned:0},
+  missions:[],
+  achievements:[],
+  lastSave:Date.now(),
+  lastTime:Date.now(),
+  selectedFurniture:null,
+  hiredWaiters:[],
+  avatarColor:'#FF9900',
+  avatarHair:'👱',
+  beachUnlocked:false,
+  currentTab:'main',
+};
+
+// ==================== GRID ====================
+function initGrid(){
+  G.tiles=[];
+  const sz=G.gridSize;
+  for(let r=0;r<sz;r++){
+    G.tiles[r]=[];
+    for(let c=0;c<sz;c++){
+      G.tiles[r][c]={furniture:null,walkable:true};
+    }
+  }
+}
+
+function isoToScreen(r,c){
+  const canvas=document.getElementById('gameCanvas');
+  const cx=canvas.width/2, cy=150;
+  const x=cx+(c-r)*TILE_W/2;
+  const y=cy+(c+r)*TILE_H/2;
+  return{x,y};
+}
+
+function screenToIso(sx,sy){
+  const canvas=document.getElementById('gameCanvas');
+  const cx=canvas.width/2, cy=150;
+  const dx=sx-cx, dy=sy-cy;
+  const c=(dy/TILE_H+dx/TILE_W)/1;
+  const r=(dy/TILE_H-dx/TILE_W)/1;
+  return{r:Math.floor(r+0.5),c:Math.floor(c+0.5)};
+}
+
+// ==================== CANVAS DRAWING ====================
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+
+function resizeCanvas(){
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize',resizeCanvas);
+
+function drawTile(r,c,color,alpha=1){
+  const {x,y}=isoToScreen(r,c);
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.beginPath();
+  ctx.moveTo(x,y-TILE_H/2);
+  ctx.lineTo(x+TILE_W/2,y);
+  ctx.lineTo(x,y+TILE_H/2);
+  ctx.lineTo(x-TILE_W/2,y);
+  ctx.closePath();
+  ctx.fillStyle=color;
+  ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.2)';
+  ctx.lineWidth=1;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFurnitureOnTile(r,c,furn){
+  const {x,y}=isoToScreen(r,c);
+  // isometric box
+  const bw=TILE_W/2-4, bh=TILE_H/2-2, boxH=20;
+  ctx.save();
+  // top face
+  ctx.beginPath();
+  ctx.moveTo(x,y-TILE_H/2-boxH);
+  ctx.lineTo(x+bw,y-boxH);
+  ctx.lineTo(x,y+TILE_H/2-boxH);
+  ctx.lineTo(x-bw,y-boxH);
+  ctx.closePath();
+  ctx.fillStyle=furn.color||'#cc6600';
+  ctx.fill();
+  // right face
+  ctx.beginPath();
+  ctx.moveTo(x+bw,y-boxH);
+  ctx.lineTo(x+bw,y);
+  ctx.lineTo(x,y+TILE_H/2);
+  ctx.lineTo(x,y+TILE_H/2-boxH);
+  ctx.closePath();
+  ctx.fillStyle=shadeColor(furn.color||'#cc6600',-30);
+  ctx.fill();
+  // left face
+  ctx.beginPath();
+  ctx.moveTo(x-bw,y-boxH);
+  ctx.lineTo(x-bw,y);
+  ctx.lineTo(x,y+TILE_H/2);
+  ctx.lineTo(x,y+TILE_H/2-boxH);
+  ctx.closePath();
+  ctx.fillStyle=shadeColor(furn.color||'#cc6600',-50);
+  ctx.fill();
+  // icon
+  ctx.font='18px serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(furn.icon,x,y-boxH/2-4);
+  ctx.restore();
+}
+
+function shadeColor(c,p){
+  const n=parseInt(c.slice(1),16);
+  const r=Math.max(0,Math.min(255,(n>>16)+p));
+  const g=Math.max(0,Math.min(255,((n>>8)&0xff)+p));
+  const b=Math.max(0,Math.min(255,(n&0xff)+p));
+  // Pack R,G,B into a 24-bit int, prepend 1<<24 to preserve leading zeros, then strip the leading '1'
+  return`#${((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1)}`;
+}
+
+function drawGrid(){
+  const sz=G.gridSize;
+  for(let r=0;r<sz;r++){
+    for(let c=0;c<sz;c++){
+      const checker=(r+c)%2===0;
+      const isKitchen=r<4;
+      let tileColor;
+      if(isKitchen) tileColor=checker?'#d4a574':'#c4935c';
+      else tileColor=checker?'#f5f0e8':'#e8e0d0';
+      drawTile(r,c,tileColor);
+      if(G.tiles[r]&&G.tiles[r][c]&&G.tiles[r][c].furniture){
+        drawFurnitureOnTile(r,c,G.tiles[r][c].furniture);
+      }
+    }
+  }
+  // highlight selected placement
+  if(G.selectedFurniture&&G.hoverTile){
+    const{hr,hc}=G.hoverTile;
+    if(hr>=0&&hr<sz&&hc>=0&&hc<sz){
+      drawTile(hr,hc,'rgba(255,220,0,0.5)');
+    }
+  }
+}
+
+function drawWalls(){
+  // back wall
+  const {x:x0,y:y0}=isoToScreen(0,0);
+  const {x:x1,y:y1}=isoToScreen(0,G.gridSize);
+  const {x:x2,y:y2}=isoToScreen(G.gridSize,0);
+  // left wall
+  ctx.save();
+  ctx.fillStyle='#ffccdd';
+  ctx.beginPath();
+  ctx.moveTo(x0,y0-60);
+  ctx.lineTo(x1,y1-60);
+  ctx.lineTo(x1,y1);
+  ctx.lineTo(x0,y0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#ff99aa';
+  ctx.lineWidth=1;
+  ctx.stroke();
+  // right wall
+  ctx.fillStyle='#ffc0cc';
+  ctx.beginPath();
+  ctx.moveTo(x0,y0-60);
+  ctx.lineTo(x2,y2-60);
+  ctx.lineTo(x2,y2);
+  ctx.lineTo(x0,y0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Cafe sign
+  ctx.fillStyle='#cc0033';
+  ctx.fillRect(x0-60,y0-110,120,40);
+  ctx.fillStyle='#fff';
+  ctx.font='bold 14px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('☕ Café Mania',x0,y0-84);
+  ctx.restore();
+}
+
+function drawCustomers(){
+  for(const cu of G.customers){
+    const {x,y}=cu.screenPos||isoToScreen(cu.r||5,cu.c||5);
+    ctx.save();
+    // shadow
+    ctx.beginPath();
+    ctx.ellipse(x,y+8,14,5,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    ctx.fill();
+    // body
+    ctx.font='22px serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='bottom';
+    ctx.fillText(cu.typeData.icon,x,y);
+    // speech bubble
+    if(cu.wantRecipe){
+      ctx.fillStyle='rgba(255,255,255,0.9)';
+      ctx.strokeStyle='#ff9900';
+      ctx.lineWidth=1.5;
+      roundRect(ctx,x-18,y-52,36,24,6);
+      ctx.fill();ctx.stroke();
+      ctx.font='14px serif';
+      ctx.fillText(cu.wantRecipe.icon,x,y-32);
+    }
+    // patience bar
+    if(cu.seated){
+      const pct=cu.patience/cu.maxPatience;
+      ctx.fillStyle='#333';
+      ctx.fillRect(x-18,y-60,36,5);
+      ctx.fillStyle=pct>0.5?'#00cc44':pct>0.25?'#ffcc00':'#ff3300';
+      ctx.fillRect(x-18,y-60,36*pct,5);
+    }
+    // angry
+    if(cu.angry){
+      ctx.font='14px serif';
+      ctx.fillText('😠',x+10,y-22);
+    }
+    ctx.restore();
+  }
+}
+
+function drawWaiters(){
+  for(const w of G.waiters){
+    const {x,y}=w.screenPos||isoToScreen(w.r||2,w.c||2);
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(x,y+8,14,5,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.15)';
+    ctx.fill();
+    ctx.font='22px serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='bottom';
+    ctx.fillText(w.data.icon,x,y);
+    // energy bar
+    const ep=w.energy/w.data.energy;
+    ctx.fillStyle='#333';
+    ctx.fillRect(x-14,y-28,28,4);
+    ctx.fillStyle='#33aaff';
+    ctx.fillRect(x-14,y-28,28*ep,4);
+    // task bubble
+    if(w.task){
+      ctx.fillStyle='rgba(255,255,200,0.9)';
+      ctx.strokeStyle='#888';
+      ctx.lineWidth=1;
+      roundRect(ctx,x-16,y-46,32,18,5);
+      ctx.fill();ctx.stroke();
+      ctx.font='10px sans-serif';
+      ctx.fillStyle='#333';
+      ctx.fillText(w.task,x,y-31);
+    }
+    ctx.restore();
+  }
+}
+
+function drawParticles(){
+  for(let i=G.particles.length-1;i>=0;i--){
+    const p=G.particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.1;
+    p.life-=16;
+    if(p.life<=0){G.particles.splice(i,1);continue;}
+    ctx.save();
+    ctx.globalAlpha=Math.max(0,p.life/p.maxLife);
+    ctx.font=`${p.size||16}px serif`;
+    ctx.textAlign='center';
+    ctx.fillText(p.icon,p.x,p.y);
+    ctx.restore();
+  }
+}
+
+function drawStoveCooking(){
+  for(const sv of G.stoves){
+    if(!sv.active) continue;
+    const {x,y}=isoToScreen(sv.r,sv.c);
+    // progress bar above stove
+    const elapsed=Date.now()-sv.startTime;
+    const pct=Math.min(1,elapsed/sv.recipe.time/1000);
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,0.6)';
+    roundRect(ctx,x-24,y-50,48,10,4);
+    ctx.fill();
+    ctx.fillStyle=pct>0.8?'#00cc44':'#ffcc00';
+    ctx.beginPath();
+    ctx.roundRect(x-24,y-50,48*pct,10,4);
+    ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.font='9px Arial';
+    ctx.textAlign='center';
+    ctx.fillText(sv.recipe.icon,x,y-55);
+    // smoke puffs
+    if(!sv.done){
+      const t=Date.now()/1000;
+      for(let i=0;i<3;i++){
+        const a=(t*2+i*1.2)%3;
+        ctx.globalAlpha=Math.max(0,0.6-a*0.2);
+        ctx.fillStyle=sv.burned?'#333':'#ccc';
+        ctx.beginPath();
+        ctx.arc(x+(i-1)*5,y-60-a*12,4+a*2,0,Math.PI*2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    if(sv.done){
+      // ready glow
+      ctx.save();
+      ctx.shadowColor='#ffcc00';
+      ctx.shadowBlur=16;
+      ctx.font='20px serif';
+      ctx.textAlign='center';
+      ctx.fillText('✅',x,y-56);
+      ctx.restore();
+    }
+  }
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+function drawBackground(){
+  // sky/floor gradient
+  const grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,'#87ceeb');
+  grad.addColorStop(0.3,'#d4e8f0');
+  grad.addColorStop(0.3,'#8B6914');
+  grad.addColorStop(1,'#6B4F10');
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function drawAvatar(){
+  // Draw player avatar near entrance
+  const {x,y}=isoToScreen(G.gridSize-1,G.gridSize/2|0);
+  ctx.save();
+  ctx.font='24px serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='bottom';
+  ctx.fillText(G.avatarHair,x,y-2);
+  ctx.restore();
+}
+
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawBackground();
+  drawWalls();
+  drawGrid();
+  drawStoveCooking();
+  drawCustomers();
+  drawWaiters();
+  drawAvatar();
+  drawParticles();
+}
+
+
+const MAX_PATHFINDING_ITERATIONS = 400;
+function aStar(startR,startC,endR,endC){
+  const sz=G.gridSize;
+  if(endR<0||endR>=sz||endC<0||endC>=sz) return[];
+  const key=(r,c)=>r*100+c;
+  const open=[];
+  const closed=new Set();
+  const gScore={};
+  const fScore={};
+  const parent={};
+  const h=(r,c)=>Math.abs(r-endR)+Math.abs(c-endC);
+  gScore[key(startR,startC)]=0;
+  fScore[key(startR,startC)]=h(startR,startC);
+  open.push({r:startR,c:startC,f:fScore[key(startR,startC)]});
+  let iters=0;
+  while(open.length>0&&iters++<MAX_PATHFINDING_ITERATIONS){
+    open.sort((a,b)=>a.f-b.f);
+    const cur=open.shift();
+    const ck=key(cur.r,cur.c);
+    if(cur.r===endR&&cur.c===endC){
+      const path=[];
+      let node=ck;
+      while(parent[node]!==undefined){
+        const nr=Math.floor(node/100),nc=node%100;
+        path.unshift({r:nr,c:nc});
+        node=parent[node];
+      }
+      return path;
+    }
+    closed.add(ck);
+    const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+    for(const[dr,dc]of dirs){
+      const nr=cur.r+dr,nc=cur.c+dc;
+      if(nr<0||nr>=sz||nc<0||nc>=sz) continue;
+      const nk=key(nr,nc);
+      if(closed.has(nk)) continue;
+      const tile=G.tiles[nr][nc];
+      // allow walking on tiles without furniture, or the destination
+      if(tile.furniture&&!(nr===endR&&nc===endC)) continue;
+      const ng=(gScore[ck]||0)+1;
+      if(gScore[nk]===undefined||ng<gScore[nk]){
+        gScore[nk]=ng;
+        fScore[nk]=ng+h(nr,nc);
+        parent[nk]=ck;
+        open.push({r:nr,c:nc,f:fScore[nk]});
+      }
+    }
+  }
+  return[];
+}
+
+// ==================== CUSTOMER AI ====================
+function spawnCustomer(){
+  if(G.customers.length>=8) return;
+  const tableSlots=findFreeTables();
+  if(tableSlots.length===0) return;
+  const typeData=CUSTOMER_TYPES[Math.floor(Math.random()*CUSTOMER_TYPES.length)];
+  const available=RECIPES.filter(r=>r.lvl<=G.level);
+  if(available.length===0) return;
+  const recipe=available[Math.floor(Math.random()*Math.min(available.length,10))];
+  const slot=tableSlots[Math.floor(Math.random()*tableSlots.length)];
+  const spawnR=G.gridSize-1, spawnC=Math.floor(G.gridSize/2);
+  const path=aStar(spawnR,spawnC,slot.r,slot.c);
+  const cu={
+    id:Date.now()+Math.random(),
+    typeData,
+    wantRecipe:recipe,
+    r:spawnR,c:spawnC,
+    targetR:slot.r,targetC:slot.c,
+    path,pathIdx:0,
+    seated:false,
+    patience:typeData.patience,
+    maxPatience:typeData.patience,
+    served:false,
+    angry:false,
+    screenPos:isoToScreen(spawnR,spawnC),
+    moveTimer:0,
+    spawnTime:Date.now(),
+  };
+  G.customers.push(cu);
+  slot.occupied=true;
+}
+
+function findFreeTables(){
+  const slots=[];
+  for(let r=4;r<G.gridSize;r++){
+    for(let c=0;c<G.gridSize;c++){
+      const t=G.tiles[r][c];
+      if(t.furniture&&t.furniture.type==='table'&&!t.occupied){
+        slots.push({r,c,tile:t});
+      }
+    }
+  }
+  return slots;
+}
+
+function updateCustomers(dt){
+  for(let i=G.customers.length-1;i>=0;i--){
+    const cu=G.customers[i];
+    if(cu.served||cu.leaving){
+      // animate leaving
+      cu.screenPos.y-=0.8;
+      cu.leaveTimer=(cu.leaveTimer||0)+dt;
+      if(cu.leaveTimer>2000){
+        G.customers.splice(i,1);
+        // free table
+        if(G.tiles[cu.targetR]&&G.tiles[cu.targetR][cu.targetC]){
+          G.tiles[cu.targetR][cu.targetC].occupied=false;
+        }
+      }
+      continue;
+    }
+    // move along path
+    if(!cu.seated&&cu.path&&cu.pathIdx<cu.path.length){
+      cu.moveTimer+=dt;
+      if(cu.moveTimer>300){
+        cu.moveTimer=0;
+        const step=cu.path[cu.pathIdx];
+        cu.r=step.r; cu.c=step.c;
+        cu.screenPos=isoToScreen(cu.r,cu.c);
+        cu.pathIdx++;
+        playStep();
+      }
+      if(cu.pathIdx>=cu.path.length){
+        cu.seated=true;
+        cu.r=cu.targetR; cu.c=cu.targetC;
+        cu.screenPos=isoToScreen(cu.r,cu.c);
+      }
+    }
+    // patience countdown
+    if(cu.seated){
+      cu.patience-=dt/1000;
+      if(cu.patience<=0&&!cu.angry){
+        cu.angry=true;
+        cu.leaving=true;
+        G.popularity=Math.max(0,G.popularity-0.1);
+        updateHUD();
+        spawnParticles(cu.screenPos.x,cu.screenPos.y,'😠',3);
+        showNotif('😠 Cliente foi embora insatisfeito!');
+      }
+    }
+  }
+}
+
+function serveCustomerAt(r,c,recipe){
+  const cu=G.customers.find(c2=>c2.targetR===r&&c2.targetC===c&&c2.seated&&!c2.served);
+  if(!cu) return false;
+  if(cu.wantRecipe.id!==recipe.id) return false;
+  // pay
+  const mult=cu.typeData.payMult;
+  const payment=Math.round(recipe.sell*mult);
+  const tip=cu.patience>cu.maxPatience*0.5?Math.round(payment*0.1):0;
+  G.gold+=payment+tip;
+  G.xp+=recipe.xp;
+  G.popularity=Math.min(5.0,G.popularity+0.1);
+  G.stats.served++;
+  G.stats.recipes[recipe.id]=(G.stats.recipes[recipe.id]||0)+1;
+  cu.served=true;
+  cu.leaving=true;
+  spawnParticles(cu.screenPos.x,cu.screenPos.y,'🪙',5);
+  playCoins();
+  checkLevelUp();
+  updateHUD();
+  checkAchievements();
+  return true;
+}
+
+// ==================== WAITER AI ====================
+function updateWaiters(dt){
+  for(const w of G.waiters){
+    if(w.energy<=0) continue;
+    w.moveTimer=(w.moveTimer||0)+dt;
+    if(w.moveTimer<400/w.data.speed) continue;
+    w.moveTimer=0;
+    // state machine
+    if(!w.state||w.state==='idle') waiterFindTask(w);
+    if(w.state==='goCounter') waiterMoveToTarget(w,()=>{
+      w.state='pickDish';
+    });
+    if(w.state==='pickDish'){
+      const dish=G.readyDishes[0];
+      if(dish){
+        w.carryingDish=G.readyDishes.shift();
+        w.state='goTable';
+        const cu=w.carryingDish&&G.customers.find(c=>c.seated&&!c.served&&!c.angry&&c.wantRecipe.id===w.carryingDish.id);
+        if(cu){
+          w.targetR=cu.targetR; w.targetC=cu.targetC;
+          w.targetCustomer=cu;
+          w.path=aStar(w.r,w.c,w.targetR,w.targetC);
+          w.pathIdx=0;
+        } else { w.carryingDish=null; w.state='idle'; }
+      } else { w.state='idle'; }
+    }
+    if(w.state==='goTable') waiterMoveToTarget(w,()=>{
+      if(w.targetCustomer&&!w.targetCustomer.served){
+        serveCustomerAt(w.targetCustomer.targetR,w.targetCustomer.targetC,w.carryingDish);
+        w.task='✅';
+      }
+      w.carryingDish=null; w.targetCustomer=null;
+      w.state='idle';
+      w.energy=Math.max(0,w.energy-5);
+    });
+  }
+}
+
+function waiterFindTask(w){
+  if(G.readyDishes.length>0){
+    // find counter
+    for(let r=0;r<G.gridSize;r++){
+      for(let c=0;c<G.gridSize;c++){
+        if(G.tiles[r][c].furniture&&G.tiles[r][c].furniture.type==='counter'){
+          w.targetR=r; w.targetC=c;
+          w.path=aStar(w.r,w.c,r,c);
+          w.pathIdx=0;
+          w.state='goCounter';
+          w.task='🍴';
+          return;
+        }
+      }
+    }
+  }
+  w.task=''; w.state='idle';
+}
+
+function waiterMoveToTarget(w,onArrived){
+  if(!w.path||w.pathIdx>=w.path.length){
+    onArrived();
+    return;
+  }
+  const step=w.path[w.pathIdx];
+  w.r=step.r; w.c=step.c;
+  w.screenPos=isoToScreen(w.r,w.c);
+  w.pathIdx++;
+  if(w.pathIdx>=w.path.length) onArrived();
+}
+
+// ==================== COOKING ====================
+let selectedStove=null;
+
+function clickStove(r,c){
+  selectedStove={r,c};
+  openCookPanel(r,c);
+}
+
+function openCookPanel(r,c){
+  const panel=document.getElementById('cookPanel');
+  const grid=document.getElementById('cookGrid');
+  grid.innerHTML='';
+  const sv=G.stoves.find(s=>s.r===r&&s.c===c);
+  const unlocked=RECIPES.filter(r2=>r2.lvl<=G.level);
+  for(const rec of unlocked){
+    const cooking=sv&&sv.active&&!sv.done;
+    const div=document.createElement('div');
+    div.className='cookItem'+(cooking?' cooking':'');
+    if(sv&&sv.active&&!sv.done){
+      div.title='Fogão ocupado';
+    }
+    div.innerHTML=`<div class="cIcon">${rec.icon}</div><div class="cName">${rec.name}</div><div class="cTime">${formatTime(rec.time)} | 🪙${rec.sell}</div>`;
+    if(!cooking){
+      div.onclick=()=>startCooking(r,c,rec);
+    }
+    grid.appendChild(div);
+  }
+  panel.style.display='block';
+}
+
+function closeCookPanel(){
+  document.getElementById('cookPanel').style.display='none';
+  selectedStove=null;
+}
+
+function startCooking(r,c,recipe){
+  if(G.energy<recipe.energy){showNotif('⚡ Sem energia!');return;}
+  G.energy-=recipe.energy;
+  let sv=G.stoves.find(s=>s.r===r&&s.c===c);
+  if(!sv){sv={r,c};G.stoves.push(sv);}
+  if(sv.active&&!sv.done){showNotif('Fogão já está ocupado!');return;}
+  sv.active=true;
+  sv.done=false;
+  sv.burned=false;
+  sv.recipe=recipe;
+  sv.startTime=Date.now();
+  closeCookPanel();
+  updateHUD();
+  showNotif(`🍳 Preparando ${recipe.icon} ${recipe.name}...`);
+}
+
+function updateCooking(dt){
+  const now=Date.now();
+  for(const sv of G.stoves){
+    if(!sv.active||sv.done) continue;
+    const elapsed=(now-sv.startTime)/1000;
+    if(elapsed>=sv.recipe.time){
+      sv.done=true;
+      playDing();
+      G.readyDishes.push(sv.recipe);
+      spawnParticles(
+        isoToScreen(sv.r,sv.c).x,
+        isoToScreen(sv.r,sv.c).y-40,
+        '✅',4
+      );
+      showNotif(`✅ ${sv.recipe.icon} ${sv.recipe.name} pronto!`);
+      // If no waiters, player needs to serve manually
+    }
+    if(elapsed>=sv.recipe.time*1.5&&!sv.burned){
+      sv.burned=true;
+      sv.active=false;
+      G.stats.burned++;
+      G.stats.cleaned++;
+      spawnParticles(isoToScreen(sv.r,sv.c).x,isoToScreen(sv.r,sv.c).y-40,'💨',6);
+      showNotif(`💨 ${sv.recipe.icon} queimou! Limpe o fogão.`);
+    }
+  }
+}
+
+function collectDish(r,c){
+  const sv=G.stoves.find(s=>s.r===r&&s.c===c&&s.done);
+  if(!sv) return;
+  sv.active=false; sv.done=false;
+  // find a waiting customer
+  const served=tryServeAnyCustomer(sv.recipe);
+  if(!served){
+    G.readyDishes.push(sv.recipe);
+    showNotif(`${sv.recipe.icon} adicionado ao balcão!`);
+  }
+}
+
+function tryServeAnyCustomer(recipe){
+  for(const cu of G.customers){
+    if(cu.seated&&!cu.served&&!cu.angry&&cu.wantRecipe.id===recipe.id){
+      serveCustomerAt(cu.targetR,cu.targetC,recipe);
+      return true;
+    }
+  }
+  return false;
+}
+
+function cleanStove(r,c){
+  const sv=G.stoves.find(s=>s.r===r&&s.c===c);
+  if(sv){sv.active=false;sv.done=false;sv.burned=false;}
+  showNotif('🧹 Fogão limpo!');
+  G.stats.cleaned++;
+  checkAchievements();
+}
+
+// ==================== ECONOMY & LEVELS ====================
+function checkLevelUp(){
+  while(G.xp>=G.xpNext){
+    G.xp-=G.xpNext;
+    G.level++;
+    G.xpNext=Math.round(G.xpNext*1.2);
+    G.energy=G.energyMax; // refill on level up
+    playFanfare();
+    showLevelUpEffect();
+    showNotif(`🎉 Nível ${G.level}! Parabéns!`);
+    updateHUD();
+  }
+}
+
+function showLevelUpEffect(){
+  for(let i=0;i<30;i++){
+    spawnParticle(
+      canvas.width/2+(Math.random()-0.5)*200,
+      canvas.height/2+(Math.random()-0.5)*100,
+      ['⭐','✨','🎊','🎉','💫'][Math.floor(Math.random()*5)],
+      (Math.random()-0.5)*4,
+      -3-Math.random()*4,
+      16+Math.random()*8,
+      2500
+    );
+  }
+}
+
+function spawnParticles(x,y,icon,count){
+  for(let i=0;i<count;i++){
+    spawnParticle(x,y,icon,(Math.random()-0.5)*3,-1-Math.random()*3,14+Math.random()*6,1200);
+  }
+}
+
+function spawnParticle(x,y,icon,vx,vy,size,life){
+  G.particles.push({x,y,vx,vy,icon,size,life,maxLife:life});
+}
+
+function updateHUD(){
+  document.getElementById('goldVal').textContent=G.gold;
+  document.getElementById('gemVal').textContent=G.gems;
+  document.getElementById('lvlVal').textContent=G.level;
+  document.getElementById('energyVal').textContent=G.energy;
+  document.getElementById('popVal').textContent=G.popularity.toFixed(1);
+  const pct=(G.xp/G.xpNext*100).toFixed(1);
+  document.getElementById('xpFill').style.width=pct+'%';
+  document.getElementById('xpLabel').textContent=`${G.xp}/${G.xpNext} XP`;
+}
+
+function formatTime(secs){
+  if(secs<60) return secs+'s';
+  const m=Math.floor(secs/60), s=secs%60;
+  return s>0?`${m}m${s}s`:`${m}m`;
+}
+
+// Energy regen: 1 point per 3 minutes
+const ENERGY_REGEN_MS = 180000;
+let energyTimer=0;
+function updateEnergy(dt){
+  if(G.energy<G.energyMax){
+    energyTimer+=dt;
+    if(energyTimer>=ENERGY_REGEN_MS){energyTimer=0;G.energy=Math.min(G.energyMax,G.energy+1);updateHUD();}
+  }
+}
+
+
+// ==================== AUDIO ENGINE ====================
+let audioCtx=null;
+function getAudioCtx(){
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playTone(freq,dur,type='sine',gain=0.3){
+  try{
+    const ac=getAudioCtx();
+    const osc=ac.createOscillator();
+    const g=ac.createGain();
+    osc.connect(g); g.connect(ac.destination);
+    osc.type=type; osc.frequency.value=freq;
+    g.gain.setValueAtTime(gain,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01,ac.currentTime+dur);
+    osc.start(); osc.stop(ac.currentTime+dur);
+  }catch(e){}
+}
+
+function playCoins(){
+  [880,1100,1320].forEach((f,i)=>setTimeout(()=>playTone(f,0.15,'square',0.2),i*60));
+}
+
+function playDing(){
+  playTone(1800,0.5,'sine',0.4);
+  setTimeout(()=>playTone(2200,0.3,'sine',0.3),100);
+}
+
+function playStep(){
+  playTone(120+Math.random()*40,0.05,'sawtooth',0.05);
+}
+
+function playFanfare(){
+  const notes=[523,659,784,1047];
+  notes.forEach((f,i)=>setTimeout(()=>playTone(f,0.3,'square',0.3),i*120));
+}
+
+let bgMusicStarted=false;
+function startBgMusic(){
+  if(bgMusicStarted) return;
+  bgMusicStarted=true;
+  const ac=getAudioCtx();
+  function playNote(f,t,d){
+    const osc=ac.createOscillator();
+    const g=ac.createGain();
+    osc.connect(g);g.connect(ac.destination);
+    osc.type='triangle';osc.frequency.value=f;
+    g.gain.setValueAtTime(0.06,ac.currentTime+t);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+t+d);
+    osc.start(ac.currentTime+t);osc.stop(ac.currentTime+t+d+0.05);
+  }
+  const melody=[392,440,494,523,494,440,392,349,392,440,523,659,523,440,392,349];
+  function loop(offset){
+    let t=0;
+    for(const f of melody){
+      playNote(f,offset+t,0.18);
+      t+=0.22;
+    }
+    setTimeout(()=>loop(0),melody.length*220+500);
+  }
+  loop(0);
+}
+
+// ==================== INTERACTIONS ====================
+canvas.addEventListener('click',e=>{
+  startBgMusic();
+  const rect=canvas.getBoundingClientRect();
+  const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
+  const {r,c}=screenToIso(sx,sy);
+  if(r<0||r>=G.gridSize||c<0||c>=G.gridSize) return;
+
+  if(G.selectedFurniture){
+    placeFurniture(r,c,G.selectedFurniture);
+    G.selectedFurniture=null;
+    G.hoverTile=null;
+    return;
+  }
+
+  const tile=G.tiles[r][c];
+  if(!tile) return;
+  if(tile.furniture){
+    const f=tile.furniture;
+    if(f.type==='stove'){
+      const sv=G.stoves.find(s=>s.r===r&&s.c===c);
+      if(sv&&sv.done) collectDish(r,c);
+      else if(sv&&sv.burned) cleanStove(r,c);
+      else clickStove(r,c);
+    } else if(f.type==='table'){
+      // serve from ready dishes
+      if(G.readyDishes.length>0){
+        const dish=G.readyDishes[0];
+        if(serveCustomerAt(r,c,dish)){
+          G.readyDishes.shift();
+        } else {
+          showNotif('Nenhum cliente esperando por esse prato aqui.');
+        }
+      } else {
+        showNotif('Nenhum prato pronto para servir!');
+      }
+    }
+  }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  if(!G.selectedFurniture) return;
+  const rect=canvas.getBoundingClientRect();
+  const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
+  const {r,c}=screenToIso(sx,sy);
+  G.hoverTile={hr:r,hc:c};
+});
+
+function placeFurniture(r,c,furnDef){
+  if(r<0||r>=G.gridSize||c<0||c>=G.gridSize) return;
+  if(G.tiles[r][c].furniture){showNotif('Tile ocupado!');return;}
+  if(G.gold<furnDef.cost){showNotif('🪙 Ouro insuficiente!');return;}
+  if(G.level<furnDef.lvl){showNotif(`Precisa ser nível ${furnDef.lvl}!`);return;}
+  G.gold-=furnDef.cost;
+  G.stats.goldSpent+=furnDef.cost;
+  G.tiles[r][c].furniture={...furnDef};
+  G.tiles[r][c].walkable=false;
+  updateHUD();
+  showNotif(`✅ ${furnDef.icon} ${furnDef.name} colocado!`);
+  checkAchievements();
+}
+
+// ==================== MODALS ====================
+function openModal(id){
+  closeAllModals();
+  document.getElementById(id).classList.add('open');
+  document.getElementById('modalOverlay').classList.add('open');
+  if(id==='shopModal') renderShop();
+  if(id==='recipesModal') renderRecipes();
+  if(id==='achievModal') renderAchievements();
+  if(id==='expandModal') renderExpand();
+  if(id==='giftsModal') renderGifts();
+  if(id==='hireModal') renderHire();
+  if(id==='avatarModal') renderAvatar();
+}
+
+function closeAllModals(){
+  document.querySelectorAll('.modal').forEach(m=>m.classList.remove('open'));
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function renderShop(){
+  const cont=document.getElementById('shopContent');
+  cont.innerHTML='<div class="shopGrid">'+
+    FURNITURE_DEFS.map(f=>`
+      <div class="shopItem ${G.level<f.lvl?'locked':''}" onclick="${G.level>=f.lvl?`selectFurniture('${f.id}')`:''}" title="${G.level<f.lvl?'Nível '+f.lvl+' necessário':'Clique para comprar e colocar'}">
+        <div class="icon">${f.icon}</div>
+        <div class="name">${f.name}</div>
+        <div class="cost">🪙 ${f.cost} ${G.level<f.lvl?'(Nv'+f.lvl+')':''}</div>
+      </div>
+    `).join('')+'</div>';
+}
+
+function selectFurniture(id){
+  G.selectedFurniture=FURNITURE_DEFS.find(f=>f.id===id);
+  closeAllModals();
+  showNotif(`Clique no tile para colocar: ${G.selectedFurniture.icon} ${G.selectedFurniture.name}`);
+}
+
+function renderRecipes(){
+  const cont=document.getElementById('recipesContent');
+  cont.innerHTML='<div class="recipeGrid">'+
+    RECIPES.map(r=>{
+      const locked=r.lvl>G.level;
+      const count=G.stats.recipes[r.id]||0;
+      return`<div class="recipeItem ${locked?'locked':''}">
+        <div class="rIcon">${r.icon}</div>
+        <div class="rName">${r.name}</div>
+        <div class="rInfo">${formatTime(r.time)} | 🪙${r.sell} | ${r.xp}xp</div>
+        ${locked?`<div class="rInfo" style="color:#c00">Nv ${r.lvl}</div>`:`<div class="rInfo">Feito: ${count}x</div>`}
+      </div>`;
+    }).join('')+'</div>';
+}
+
+function renderAchievements(){
+  const cont=document.getElementById('achievContent');
+  const achs=[
+    {title:'⭐ Serviço Eficiente',tiers:[10,50,200,500,1000],val:G.stats.served,unit:'pratos servidos'},
+    {title:'🍽️ Cardápio Variado',tiers:[3,5,8,12,20],val:Object.keys(G.stats.recipes).length,unit:'receitas diferentes'},
+    {title:'💎 Grande Investidor',tiers:[1000,10000,50000,200000,500000],val:G.stats.goldSpent,unit:'Café Ouro gasto'},
+    {title:'⚡ Mestre da Velocidade',tiers:[10,25,50,100,200],val:G.stats.speedServes,unit:'servidos rápido'},
+    {title:'🧹 Obsessão Limpeza',tiers:[10,50,200,500,1000],val:G.stats.cleaned,unit:'fogões limpos'},
+    {title:'🌟 Nível Alto',tiers:[5,10,20,30,50],val:G.level,unit:'nível alcançado'},
+  ];
+  cont.innerHTML='<div class="achGrid">'+achs.map(a=>{
+    let stars='';
+    for(let i=0;i<5;i++){
+      stars+=a.val>=a.tiers[i]?'⭐':'☆';
+    }
+    const next=a.tiers.find(t=>t>a.val)||a.tiers[4];
+    return`<div class="achCard">
+      <div class="achTitle">${a.title}</div>
+      <div class="achStars">${stars}</div>
+      <div class="achDesc">${a.val} / ${next} ${a.unit}</div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+function renderExpand(){
+  const cont=document.getElementById('expandContent');
+  const sizes=[6,8,10,12];
+  cont.innerHTML=sizes.map(s=>{
+    const cost=s*s*50;
+    const current=G.gridSize===s;
+    const unlocked=G.gridSize>=s;
+    return`<div style="background:${current?'#ffe0cc':'#fff8ee'};border:2px solid #ffaa55;border-radius:10px;padding:12px;margin:8px 0;display:flex;justify-content:space-between;align-items:center">
+      <div><b>${s}×${s} tiles</b> ${current?'(atual)':''}</div>
+      ${!unlocked?`<button onclick="expandGrid(${s})" style="background:#ff6600;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:bold">🪙 ${cost}</button>`
+      :`<span style="color:#00aa44">✅ Desbloqueado</span>`}
+    </div>`;
+  }).join('');
+}
+
+function expandGrid(size){
+  const cost=size*size*50;
+  if(G.gold<cost){showNotif('🪙 Ouro insuficiente!');return;}
+  G.gold-=cost;
+  G.stats.goldSpent+=cost;
+  G.gridSize=size;
+  // reinit grid preserving existing tiles
+  const oldTiles=G.tiles;
+  initGrid();
+  for(let r=0;r<Math.min(oldTiles.length,size);r++){
+    for(let c=0;c<Math.min((oldTiles[r]||[]).length,size);c++){
+      G.tiles[r][c]=oldTiles[r][c];
+    }
+  }
+  updateHUD();
+  closeAllModals();
+  showNotif(`✅ Restaurante expandido para ${size}×${size}!`);
+}
+
+function renderGifts(){
+  const cont=document.getElementById('giftsContent');
+  if(G.gifts.length===0){
+    cont.innerHTML='<p style="text-align:center;color:#888;padding:20px">Nenhum presente ainda. Sirva clientes satisfeitos!</p>';
+    return;
+  }
+  cont.innerHTML=G.gifts.map((g,i)=>`
+    <div style="background:#fff8ee;border:2px solid #ffcc66;border-radius:10px;padding:10px;margin:6px 0;display:flex;justify-content:space-between;align-items:center">
+      <span>${g.icon} ${g.name}</span>
+      <button onclick="collectGift(${i})" style="background:#ff9900;color:#fff;border:none;padding:4px 12px;border-radius:8px;cursor:pointer">Pegar</button>
+    </div>
+  `).join('');
+}
+
+function collectGift(i){
+  const gift=G.gifts.splice(i,1)[0];
+  G.gold+=gift.value||50;
+  updateHUD();
+  renderGifts();
+  showNotif(`🎁 ${gift.name} coletado! +🪙${gift.value||50}`);
+}
+
+function renderHire(){
+  const cont=document.getElementById('hireContent');
+  cont.innerHTML=WAITERS_DEF.map(w=>{
+    const hired=G.hiredWaiters.includes(w.id);
+    return`<div style="background:#fff8ee;border:2px solid #ffaa55;border-radius:10px;padding:12px;margin:8px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><span style="font-size:24px">${w.icon}</span> <b>${w.name}</b></div>
+        ${hired?`<span style="color:#00aa44;font-weight:bold">✅ Contratado</span>`
+        :`<button onclick="hireWaiter('${w.id}')" style="background:#ff6600;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:bold">🪙 ${w.cost}</button>`}
+      </div>
+      <div style="font-size:12px;color:#888;margin-top:4px">Velocidade: ${w.speed}x | Energia: ${w.energy}</div>
+    </div>`;
+  }).join('');
+}
+
+function hireWaiter(id){
+  const w=WAITERS_DEF.find(x=>x.id===id);
+  if(!w) return;
+  if(G.gold<w.cost){showNotif('🪙 Ouro insuficiente!');return;}
+  if(G.hiredWaiters.includes(id)){showNotif('Já contratado!');return;}
+  G.gold-=w.cost;
+  G.stats.goldSpent+=w.cost;
+  G.hiredWaiters.push(id);
+  G.waiters.push({
+    id:Date.now(),
+    data:w,
+    r:1,c:1,
+    screenPos:isoToScreen(1,1),
+    energy:w.energy,
+    state:'idle',
+    path:[],pathIdx:0,
+    moveTimer:0,
+    task:'',
+    carryingDish:null,
+    targetR:0,targetC:0,
+  });
+  updateHUD();
+  renderHire();
+  showNotif(`✅ ${w.icon} ${w.name} contratado!`);
+}
+
+function renderAvatar(){
+  const cont=document.getElementById('avatarContent');
+  const hairs=['👱','👦','👧','👩','👨','🧑','👴','👵'];
+  const colors=['#FF9900','#FF6600','#CC3300','#0066CC','#006600','#660066','#CC0066'];
+  cont.innerHTML=`
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:48px">${G.avatarHair}</div>
+      <div style="width:40px;height:40px;border-radius:50%;background:${G.avatarColor};display:inline-block;vertical-align:middle;border:3px solid #888"></div>
+    </div>
+    <p style="font-weight:bold;margin:8px 0">Escolha o emoji:</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      ${hairs.map(h=>`<span style="font-size:28px;cursor:pointer;padding:4px;border:2px solid ${G.avatarHair===h?'#ff9900':'transparent'};border-radius:8px" onclick="G.avatarHair='${h}';renderAvatar()">${h}</span>`).join('')}
+    </div>
+    <p style="font-weight:bold;margin:8px 0">Cor da roupa:</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${colors.map(co=>`<div style="width:28px;height:28px;border-radius:50%;background:${co};cursor:pointer;border:3px solid ${G.avatarColor===co?'#000':'transparent'}" onclick="G.avatarColor='${co}';renderAvatar()"></div>`).join('')}
+    </div>
+  `;
+}
+
+
+// ==================== NOTIFICATIONS ====================
+let notifTimer=null;
+function showNotif(msg){
+  const el=document.getElementById('notif');
+  el.textContent=msg;
+  el.style.opacity='1';
+  if(notifTimer) clearTimeout(notifTimer);
+  notifTimer=setTimeout(()=>{el.style.opacity='0';},2500);
+}
+
+// ==================== ACHIEVEMENTS CHECK ====================
+function checkAchievements(){
+  // Served achievements
+  const served=G.stats.served;
+  [10,50,200,500,1000].forEach(t=>{
+    const key='served_'+t;
+    if(served>=t&&!G.achievements.includes(key)){
+      G.achievements.push(key);
+      showNotif(`🏆 Conquista desbloqueada: Serviço Eficiente (${t} pratos)!`);
+      spawnParticles(canvas.width/2,canvas.height/2,'🏆',10);
+    }
+  });
+  // Recipe variety
+  const variety=Object.keys(G.stats.recipes).length;
+  [3,5,8,12,20].forEach(t=>{
+    const key='variety_'+t;
+    if(variety>=t&&!G.achievements.includes(key)){
+      G.achievements.push(key);
+      showNotif(`🏆 Conquista: Cardápio Variado (${t} receitas)!`);
+    }
+  });
+  // Gold spent
+  [1000,10000,50000].forEach(t=>{
+    const key='gold_'+t;
+    if(G.stats.goldSpent>=t&&!G.achievements.includes(key)){
+      G.achievements.push(key);
+      showNotif(`🏆 Conquista: Grande Investidor (${t} ouro gasto)!`);
+    }
+  });
+}
+
+// ==================== SAVE / LOAD ====================
+function saveGame(){
+  const data={
+    gold:G.gold, gems:G.gems, level:G.level, xp:G.xp, xpNext:G.xpNext,
+    energy:G.energy, popularity:G.popularity, gridSize:G.gridSize,
+    tiles:G.tiles, stats:G.stats, achievements:G.achievements,
+    hiredWaiters:G.hiredWaiters, waiters:G.waiters.map(w=>({
+      id:w.id,dataId:w.data.id,r:w.r,c:w.c,energy:w.energy
+    })),
+    gifts:G.gifts,
+    avatarColor:G.avatarColor, avatarHair:G.avatarHair,
+    stoves:G.stoves, readyDishes:G.readyDishes,
+    savedAt:Date.now(),
+  };
+  localStorage.setItem('cafeManiaSave',JSON.stringify(data));
+  showNotif('💾 Jogo salvo!');
+}
+
+function loadGame(){
+  const raw=localStorage.getItem('cafeManiaSave');
+  if(!raw) return;
+  try{
+    const d=JSON.parse(raw);
+    G.gold=d.gold||500; G.gems=d.gems||50;
+    G.level=d.level||1; G.xp=d.xp||0; G.xpNext=d.xpNext||100;
+    G.energy=d.energy||50; G.popularity=d.popularity||3.0;
+    G.gridSize=d.gridSize||10;
+    G.tiles=d.tiles||[];
+    G.stats=d.stats||{served:0,burned:0,recipes:{},speedServes:0,goldSpent:0,cleaned:0};
+    G.achievements=d.achievements||[];
+    G.hiredWaiters=d.hiredWaiters||[];
+    G.gifts=d.gifts||[];
+    G.avatarColor=d.avatarColor||'#FF9900';
+    G.avatarHair=d.avatarHair||'👱';
+    G.stoves=d.stoves||[];
+    G.readyDishes=d.readyDishes||[];
+    // Restore waiters
+    G.waiters=[];
+    for(const ws of (d.waiters||[])){
+      const wdef=WAITERS_DEF.find(x=>x.id===ws.dataId);
+      if(wdef){
+        G.waiters.push({
+          id:ws.id, data:wdef, r:ws.r||1, c:ws.c||1,
+          screenPos:isoToScreen(ws.r||1,ws.c||1),
+          energy:ws.energy||wdef.energy,
+          state:'idle', path:[], pathIdx:0,
+          moveTimer:0, task:'',
+        });
+      }
+    }
+    // Calculate offline time — dishes that finished cooking
+    if(d.savedAt){
+      const offlineMs=Date.now()-d.savedAt;
+      for(const sv of G.stoves){
+        if(sv.active&&!sv.done){
+          const wouldFinish=sv.startTime+sv.recipe.time*1000;
+          if(wouldFinish<=Date.now()){
+            sv.done=true;
+            G.readyDishes.push(sv.recipe);
+          }
+        }
+      }
+      if(offlineMs>60000) showNotif(`⏰ Você ficou ausente ${Math.floor(offlineMs/60000)}min. Pratos verificados!`);
+    }
+    showNotif('💾 Jogo carregado!');
+  }catch(e){console.error('Load error',e);}
+}
+
+function resetGame(){
+  if(!confirm('Tem certeza que quer resetar o jogo? Todo progresso será perdido!')) return;
+  localStorage.removeItem('cafeManiaSave');
+  location.reload();
+}
+
+// Customer spawn intervals (ms): min 8s, max 30s, scaled by popularity
+const SPAWN_INTERVAL_MIN = 8000;
+const SPAWN_INTERVAL_MAX = 30000;
+const SPAWN_POPULARITY_SCALE = 4000;
+
+let customerTimer=0;
+function updateCustomerSpawn(dt){
+  customerTimer+=dt;
+  const interval=Math.max(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_MAX - G.popularity * SPAWN_POPULARITY_SCALE);
+  if(customerTimer>=interval){
+    customerTimer=0;
+    spawnCustomer();
+    // chance to drop gift
+    if(Math.random()<0.1&&G.gifts.length<30){
+      G.gifts.push({icon:'🎁',name:'Presente Surpresa',value:20+Math.floor(Math.random()*80)});
+    }
+  }
+}
+
+// ==================== AUTO SAVE ====================
+let autoSaveTimer=0;
+function updateAutoSave(dt){
+  autoSaveTimer+=dt;
+  if(autoSaveTimer>=30000){
+    autoSaveTimer=0;
+    saveGame();
+  }
+}
+
+// ==================== GAME LOOP ====================
+let lastFrame=0;
+function gameLoop(ts){
+  const dt=Math.min(ts-lastFrame,100);
+  lastFrame=ts;
+
+  updateCooking(dt);
+  updateCustomers(dt);
+  updateWaiters(dt);
+  updateCustomerSpawn(dt);
+  updateEnergy(dt);
+  updateAutoSave(dt);
+
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// ==================== INITIAL SETUP ====================
+function placeInitialFurniture(){
+  // Kitchen stoves (row 1)
+  [[1,2],[1,4],[1,6],[1,8]].forEach(([r,c])=>{
+    G.tiles[r][c].furniture={...FURNITURE_DEFS[0]};
+    G.tiles[r][c].walkable=false;
+  });
+  // Delivery counters (row 2)
+  [[2,3],[2,5],[2,7]].forEach(([r,c])=>{
+    G.tiles[r][c].furniture={...FURNITURE_DEFS[5]};
+    G.tiles[r][c].walkable=false;
+  });
+  // Fridge
+  G.tiles[1][1].furniture={...FURNITURE_DEFS[7]};G.tiles[1][1].walkable=false;
+  // Coffee machine
+  G.tiles[1][9].furniture={...FURNITURE_DEFS[8]};G.tiles[1][9].walkable=false;
+  // Cash register
+  G.tiles[3][9].furniture={...FURNITURE_DEFS[6]};G.tiles[3][9].walkable=false;
+  // Tables and chairs (hall area rows 5-8)
+  [[5,2],[5,5],[5,8],[7,2],[7,5],[7,8]].forEach(([r,c])=>{
+    G.tiles[r][c].furniture={...FURNITURE_DEFS[3]};
+    G.tiles[r][c].walkable=false;
+  });
+  // Plants
+  [[4,0],[4,9]].forEach(([r,c])=>{
+    G.tiles[r][c].furniture={...FURNITURE_DEFS[10]};
+    G.tiles[r][c].walkable=false;
+  });
+}
+
+function init(){
+  initGrid();
+  placeInitialFurniture();
+  loadGame();
+  if(!G.tiles||G.tiles.length===0){
+    initGrid();
+    placeInitialFurniture();
+  }
+  // Ensure grid size consistency
+  while(G.tiles.length<G.gridSize) G.tiles.push(Array.from({length:G.gridSize},()=>({furniture:null,walkable:true})));
+  for(let r=0;r<G.gridSize;r++){
+    while((G.tiles[r]||[]).length<G.gridSize) G.tiles[r].push({furniture:null,walkable:true});
+  }
+  updateHUD();
+  requestAnimationFrame(gameLoop);
+  // Tutorial
+  setTimeout(()=>showNotif('☕ Bem-vindo ao Café Mania! Clique num fogão para cozinhar!'),1000);
+  setTimeout(()=>showNotif('💡 Use a Loja para comprar móveis e colocar no restaurante!'),5000);
+}
+
+window.addEventListener('load',init);
+
+</script>
+</body>
+</html>
